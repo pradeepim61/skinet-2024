@@ -1,8 +1,12 @@
 using API.Middleware;
+using API.SignalR;
+using Core.Entities;
 using Core.Interfaces;
 using Infrastructure.Data;
+using Infrastructure.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,17 +20,37 @@ builder.Services.AddDbContext<StoreContext>(opt =>
 
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddCors();
+builder.Services.AddSingleton<IConnectionMultiplexer>(config =>
+{
+    var connString = builder.Configuration.GetConnectionString("Redis") ?? throw new Exception("Cannot get redis conn string");
+    var configuration = ConfigurationOptions.Parse(connString, true);
+    return ConnectionMultiplexer.Connect(configuration);
+});
 
+builder.Services.AddSingleton<ICartService, CartService>();
+builder.Services.AddAuthorization();
+builder.Services.AddIdentityApiEndpoints<AppUser>().AddEntityFrameworkStores<StoreContext>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddSignalR();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 app.UseMiddleware<ExceptionMiddleWare>();
-app.UseCors(x=> x.AllowAnyHeader().AllowAnyMethod().
-    WithOrigins("http://localhost:4200","https://localhost:4200"));
+app.UseCors(x => 
+x.AllowAnyHeader()
+.AllowAnyMethod()
+.AllowCredentials()
+//.SetIsOriginAllowed(_ => true)); // Allow all origins (not recommended for production)
+.WithOrigins("http://localhost:4200", "https://localhost:4200"));
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
-
+app.MapGroup("api").MapIdentityApi<AppUser>(); //api/login we will be using api along with Identity.
+app.MapHub<NotificationHub>("/hub/notifications");
 try
 {
     using var scope = app.Services.CreateScope();
@@ -36,10 +60,10 @@ try
     await StoreContextSeed.SeedAsysnc(context);
 
 }
-catch(Exception ex)
+catch (Exception ex)
 {
     Console.WriteLine(ex);
-        throw;
+    throw;
 }
 
 app.Run();
