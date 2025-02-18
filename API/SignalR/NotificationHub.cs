@@ -16,7 +16,7 @@ public class NotificationHub : Hub
     {
         var email = Context.User?.GetEmail();
 
-        if (string.IsNullOrEmpty(email)) UserConnections[email] = Context.ConnectionId;
+        if (!string.IsNullOrEmpty(email)) UserConnections[email] = Context.ConnectionId;
 
         return base.OnConnectedAsync();
     }
@@ -25,7 +25,7 @@ public class NotificationHub : Hub
     {
         var email = Context.User?.GetEmail();
 
-        if (string.IsNullOrEmpty(email))
+        if (!string.IsNullOrEmpty(email))
         {
             UserConnections.TryRemove(email, out _);
         }
