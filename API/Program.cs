@@ -48,9 +48,14 @@ x.AllowAnyHeader()
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.MapControllers();
 app.MapGroup("api").MapIdentityApi<AppUser>(); //api/login we will be using api along with Identity.
 app.MapHub<NotificationHub>("/hub/notifications");
+app.MapFallbackToController("Index","Fallback");
+
 try
 {
     using var scope = app.Services.CreateScope();
