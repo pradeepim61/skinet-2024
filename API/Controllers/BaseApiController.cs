@@ -9,14 +9,27 @@ namespace API.Controllers;
 [Route("api/[controller]")]
 public class BaseApiController : ControllerBase
 {
-protected async Task<ActionResult> CreatedPagedResult<T>(IGenericRepository<T> repo, ISpecification<T> spec, 
-int pageIndex, int pageSize) where T : BaseEntity
-{
-    var items = await repo.ListAsync(spec);
-    var count = await repo.CountAsync(spec);  
+    protected async Task<ActionResult> CreatedPagedResult<T>(IGenericRepository<T> repo, ISpecification<T> spec,
+    int pageIndex, int pageSize) where T : BaseEntity
+    {
+        var items = await repo.ListAsync(spec);
+        var count = await repo.CountAsync(spec);
 
-    var pagination = new Pagination<T>(pageIndex, pageSize, count, items);
-            return Ok(pagination);
-}
+        var pagination = new Pagination<T>(pageIndex, pageSize, count, items);
+        return Ok(pagination);
+    }
+
+    protected async Task<ActionResult> CreatedPagedResult<T, TDto>(IGenericRepository<T> repo, ISpecification<T> spec,
+    int pageIndex, int pageSize, Func<T, TDto> toDto) where T : BaseEntity, IDtoConvertible
+    {
+        var items = await repo.ListAsync(spec);
+        var count = await repo.CountAsync(spec);
+
+        var dtoItems = items.Select(toDto).ToList();
+
+        var pagination = new Pagination<TDto>(pageIndex, pageSize, count, dtoItems);
+        return Ok(pagination);
+    }
+
 }
 
